@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Zero Trust Demo - Access Policies'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'zero-trust-demo'
+
+Resources:
+  # Verified Access Group
+  VerifiedAccessGroup:
+    Type: AWS::EC2::VerifiedAccessGroup
+    Properties:
+      VerifiedAccessInstanceId: !Ref VerifiedAccessInstance
+      Description: 'Contractor Access Group'
+      PolicyDocument: |
+        permit(principal, action, resource)
+        when {
+          principal.aws_iam_role == "zero-trust-demo-contractor-role"
+        };
+
+  # Verified Access Endpoint
+  VerifiedAccessEndpoint:
+    Type: AWS::EC2::VerifiedAccessEndpoint
+    Properties:
+      VerifiedAccessGroupId: !Ref VerifiedAccessGroup
+      EndpointType: network-interface
+      ApplicationDomain: api.demo.local
+      EndpointDomainPrefix: secure-api
+      AttachmentType: vpc
+      DomainCertificateArn: !Ref DemoCertificate
+      NetworkInterfaceOptions:
+        NetworkInterfaceId: !Ref DemoNetworkInterface
+        Protocol: https
+        Port: 443
+
+  # Demo Network Interface
+  DemoNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: 
+        Fn::ImportValue: !Sub '${ProjectName}-private-subnet-id'
+      Description: 'Demo API Network Interface'
+
+  # Self-signed certificate for demo
+  DemoCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: api.demo.local
+      ValidationMethod: DNS
+
+  # Service Network Auth Policy
+  ServiceNetworkAuthPolicy:
+    Type: AWS::VpcLattice::AuthPolicy
+    Properties:
+      ResourceIdentifier:
+        Fn::ImportValue: !Sub '${ProjectName}-service-network-id'
+      Policy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: 
+                Fn::ImportValue: !Sub '${ProjectName}-contractor-role-arn'
+            Action: 'vpc-lattice-svcs:Invoke'
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'aws:PrincipalTag/Department': 'Contractor'
+
+Outputs:
+  VerifiedAccessEndpointId:
+    Description: 'Verified Access Endpoint ID'
+    Value: !Ref VerifiedAccessEndpoint

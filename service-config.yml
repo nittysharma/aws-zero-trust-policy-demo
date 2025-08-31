@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Zero Trust Demo - Service Configuration (Simplified)'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'zero-trust-demo'
+
+Resources:
+  # Demo Lambda Function
+  DemoApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-api-function'
+      Runtime: python3.9
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          import json
+          def handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'headers': {
+                      'Content-Type': 'application/json',
+                      'Access-Control-Allow-Origin': '*'
+                  },
+                  'body': json.dumps({
+                      'message': 'Secure API accessed successfully',
+                      'timestamp': context.aws_request_id,
+                      'demo': 'zero-trust-platform'
+                  })
+              }
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # API Gateway for demo
+  DemoApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub '${ProjectName}-api'
+      Description: 'Zero Trust Demo API'
+
+  # API Gateway Resource
+  ApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref DemoApiGateway
+      ParentId: !GetAtt DemoApiGateway.RootResourceId
+      PathPart: 'secure'
+
+  # API Gateway Method
+  ApiMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DemoApiGateway
+      ResourceId: !Ref ApiResource
+      HttpMethod: GET
+      AuthorizationType: AWS_IAM
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DemoApiFunction.Arn}/invocations'
+
+  # Lambda Permission for API Gateway
+  LambdaApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DemoApiFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${DemoApiGateway}/*/GET/secure'
+
+  # API Gateway Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: ApiMethod
+    Properties:
+      RestApiId: !Ref DemoApiGateway
+      StageName: 'demo'
+
+Outputs:
+  ApiEndpoint:
+    Description: 'API Gateway Endpoint'
+    Value: !Sub 'https://${DemoApiGateway}.execute-api.${AWS::Region}.amazonaws.com/demo/secure'
+    Export:
+      Name: !Sub '${ProjectName}-api-endpoint'
+  
+  LambdaFunctionArn:
+    Description: 'Lambda Function ARN'
+    Value: !GetAtt DemoApiFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-lambda-arn'

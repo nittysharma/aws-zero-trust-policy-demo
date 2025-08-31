@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Zero Trust Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 10px 0; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .log { background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 200px; overflow-y: scroll; }
+        input { padding: 8px; margin: 5px; width: 300px; }
+    </style>
+</head>
+<body>
+    <h1>Zero Trust Demo Platform</h1>
+    
+    <div class="container info">
+        <h3>Demo Scenario</h3>
+        <p>Contractor needs secure access to internal API through zero-trust architecture</p>
+    </div>
+
+    <div class="container">
+        <h3>Step 1: Contractor Authentication</h3>
+        <input type="text" id="contractorId" placeholder="Contractor ID" value="contractor-001">
+        <input type="text" id="certificate" placeholder="Certificate Thumbprint" value="abc123def456">
+        <button onclick="authenticate()">Authenticate</button>
+        <div id="authResult"></div>
+    </div>
+
+    <div class="container">
+        <h3>Step 2: API Access Request</h3>
+        <input type="text" id="apiEndpoint" placeholder="API Endpoint" readonly>
+        <button onclick="accessAPI()" id="apiBtn" disabled>Access Secure API</button>
+        <div id="apiResult"></div>
+    </div>
+
+    <div class="container">
+        <h3>Step 3: Service Communication</h3>
+        <button onclick="testService()" id="serviceBtn" disabled>🔗 Test Service Network</button>
+        <div id="serviceResult"></div>
+    </div>
+
+    <div class="container">
+        <h3>Security Logs</h3>
+        <div class="log" id="securityLog"></div>
+    </div>
+
+    <script>
+        let authenticated = false;
+        let sessionToken = null;
+
+        function log(message) {
+            const logDiv = document.getElementById('securityLog');
+            const timestamp = new Date().toISOString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function authenticate() {
+            const contractorId = document.getElementById('contractorId').value;
+            const certificate = document.getElementById('certificate').value;
+            
+            log(`Authentication attempt for contractor: ${contractorId}`);
+            
+            try {
+                const response = await fetch('/api/authenticate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({contractorId, certificate})
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    authenticated = true;
+                    sessionToken = result.sessionToken;
+                    document.getElementById('authResult').innerHTML = 
+                        `<div class="success">Authentication successful<br>IAM Role: ${result.roleArn}<br>Session Token: ${result.sessionToken}</div>`;
+                    document.getElementById('apiBtn').disabled = false;
+                    log(`✅ Authentication successful - Role assumed`);
+                } else {
+                    document.getElementById('authResult').innerHTML = 
+                        `<div class="error">Authentication failed: ${result.message}</div>`;
+                    log(` Authentication failed: ${result.message}`);
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`);
+            }
+        }
+
+        async function accessAPI() {
+            if (!authenticated) return;
+            
+            log(`🌐 API access request initiated`);
+            
+            try {
+                const response = await fetch('/api/access', {method: 'POST'});
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('apiResult').innerHTML = 
+                        `<div class="success">✅ API Access Granted<br>Endpoint: ${result.endpoint}<br>Response: ${JSON.stringify(result.response)}</div>`;
+                    document.getElementById('apiEndpoint').value = result.endpoint;
+                    document.getElementById('serviceBtn').disabled = false;
+                    log(`✅ API access granted`);
+                } else {
+                    document.getElementById('apiResult').innerHTML = 
+                        `<div class="error">Access Denied: ${result.message}</div>`;
+                    log(`API access denied: ${result.message}`);
+                }
+            } catch (error) {
+                log(`API error: ${error.message}`);
+            }
+        }
+
+        async function testService() {
+            if (!authenticated) return;
+            
+            log(`🔗 Service network communication test`);
+            
+            try {
+                const response = await fetch('/api/service', {method: 'POST'});
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('serviceResult').innerHTML = 
+                        `<div class="success">✅ Service Communication Successful<br>Network: ${result.serviceNetwork}<br>Services: ${result.services.join(', ')}</div>`;
+                    log(`✅ Service network test successful`);
+                } else {
+                    document.getElementById('serviceResult').innerHTML = 
+                        `<div class="error">Service test failed: ${result.message}</div>`;
+                    log(`Service test failed: ${result.message}`);
+                }
+            } catch (error) {
+                log(`Service error: ${error.message}`);
+            }
+        }
+
+        // Initialize
+        log('Zero Trust Demo Platform initialized');
+        log('Waiting for contractor authentication...');
+    </script>
+</body>
+</html>

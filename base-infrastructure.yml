@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Zero Trust Demo - Base Infrastructure'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'zero-trust-demo'
+
+Resources:
+  # VPC for demo services
+  DemoVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-vpc'
+
+  # Private subnet for services
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref DemoVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-private-subnet'
+
+  # IAM Role for contractors
+  ContractorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-contractor-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: rolesanywhere.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                'aws:PrincipalTag/Department': 'Contractor'
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                'sts:ExternalId': 'demo-contractor'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
+      Tags:
+        - Key: Department
+          Value: Contractor
+
+  # VPC Lattice Service Network
+  ServiceNetwork:
+    Type: AWS::VpcLattice::ServiceNetwork
+    Properties:
+      Name: !Sub '${ProjectName}-service-network'
+      AuthType: AWS_IAM
+
+  # Verified Access Instance
+  VerifiedAccessInstance:
+    Type: AWS::EC2::VerifiedAccessInstance
+    Properties:
+      Description: 'Zero Trust Demo Access Instance'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-verified-access'
+
+  # Trust Provider for Verified Access
+  VerifiedAccessTrustProvider:
+    Type: AWS::EC2::VerifiedAccessTrustProvider
+    Properties:
+      TrustProviderType: user
+      UserTrustProviderType: iam-identity-center
+      PolicyReferenceName: 'demo_trust_provider'
+      Description: 'Demo Trust Provider'
+
+Outputs:
+  VPCId:
+    Description: 'VPC ID'
+    Value: !Ref DemoVPC
+    Export:
+      Name: !Sub '${ProjectName}-vpc-id'
+  
+  ServiceNetworkId:
+    Description: 'Service Network ID'
+    Value: !Ref ServiceNetwork
+    Export:
+      Name: !Sub '${ProjectName}-service-network-id'
+  
+  ContractorRoleArn:
+    Description: 'Contractor Role ARN'
+    Value: !GetAtt ContractorRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-contractor-role-arn'
