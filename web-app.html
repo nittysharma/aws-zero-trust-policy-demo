@@ -39,7 +39,7 @@
 
     <div class="container">
         <h3>Step 3: Service Communication</h3>
-        <button onclick="testService()" id="serviceBtn" disabled>🔗 Test Service Network</button>
+        <button onclick="testService()" id="serviceBtn" disabled>Test Service Network</button>
         <div id="serviceResult"></div>
     </div>
 
@@ -79,11 +79,11 @@
                     document.getElementById('authResult').innerHTML = 
                         `<div class="success">Authentication successful<br>IAM Role: ${result.roleArn}<br>Session Token: ${result.sessionToken}</div>`;
                     document.getElementById('apiBtn').disabled = false;
-                    log(`✅ Authentication successful - Role assumed`);
+                    log(`Authentication successful - Role assumed`);
                 } else {
                     document.getElementById('authResult').innerHTML = 
                         `<div class="error">Authentication failed: ${result.message}</div>`;
-                    log(` Authentication failed: ${result.message}`);
+                    log(`Authentication failed: ${result.message}`);
                 }
             } catch (error) {
                 log(`Network error: ${error.message}`);
@@ -93,7 +93,7 @@
         async function accessAPI() {
             if (!authenticated) return;
             
-            log(`🌐 API access request initiated`);
+            log(`API access request initiated`);
             
             try {
                 const response = await fetch('/api/access', {method: 'POST'});
@@ -101,10 +101,10 @@
                 
                 if (result.success) {
                     document.getElementById('apiResult').innerHTML = 
-                        `<div class="success">✅ API Access Granted<br>Endpoint: ${result.endpoint}<br>Response: ${JSON.stringify(result.response)}</div>`;
+                        `<div class="success">API Access Granted<br>Endpoint: ${result.endpoint}<br>Response: ${JSON.stringify(result.response)}</div>`;
                     document.getElementById('apiEndpoint').value = result.endpoint;
                     document.getElementById('serviceBtn').disabled = false;
-                    log(`✅ API access granted`);
+                    log(`API access granted`);
                 } else {
                     document.getElementById('apiResult').innerHTML = 
                         `<div class="error">Access Denied: ${result.message}</div>`;
@@ -126,8 +126,8 @@
                 
                 if (result.success) {
                     document.getElementById('serviceResult').innerHTML = 
-                        `<div class="success">✅ Service Communication Successful<br>Network: ${result.serviceNetwork}<br>Services: ${result.services.join(', ')}</div>`;
-                    log(`✅ Service network test successful`);
+                        `<div class="success">Service Communication Successful<br>Network: ${result.serviceNetwork}<br>Services: ${result.services.join(', ')}</div>`;
+                    log(`Service network test successful`);
                 } else {
                     document.getElementById('serviceResult').innerHTML = 
                         `<div class="error">Service test failed: ${result.message}</div>`;
