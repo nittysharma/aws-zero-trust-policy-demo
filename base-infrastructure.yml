@@ -57,30 +57,20 @@ Resources:
         - Key: Department
           Value: Contractor
 
-  # VPC Lattice Service Network
-  ServiceNetwork:
-    Type: AWS::VpcLattice::ServiceNetwork
+  # Internet Gateway for VPC
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
     Properties:
-      Name: !Sub '${ProjectName}-service-network'
-      AuthType: AWS_IAM
-
-  # Verified Access Instance
-  VerifiedAccessInstance:
-    Type: AWS::EC2::VerifiedAccessInstance
-    Properties:
-      Description: 'Zero Trust Demo Access Instance'
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-verified-access'
+          Value: !Sub '${ProjectName}-igw'
 
-  # Trust Provider for Verified Access
-  VerifiedAccessTrustProvider:
-    Type: AWS::EC2::VerifiedAccessTrustProvider
+  # Attach Internet Gateway to VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      TrustProviderType: user
-      UserTrustProviderType: iam-identity-center
-      PolicyReferenceName: 'demo_trust_provider'
-      Description: 'Demo Trust Provider'
+      VpcId: !Ref DemoVPC
+      InternetGatewayId: !Ref InternetGateway
 
 Outputs:
   VPCId:
@@ -89,11 +79,11 @@ Outputs:
     Export:
       Name: !Sub '${ProjectName}-vpc-id'
   
-  ServiceNetworkId:
-    Description: 'Service Network ID'
-    Value: !Ref ServiceNetwork
+  PrivateSubnetId:
+    Description: 'Private Subnet ID'
+    Value: !Ref PrivateSubnet
     Export:
-      Name: !Sub '${ProjectName}-service-network-id'
+      Name: !Sub '${ProjectName}-private-subnet-id'
   
   ContractorRoleArn:
     Description: 'Contractor Role ARN'

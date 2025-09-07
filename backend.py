@@ -29,13 +29,13 @@ class ZeroTrustHandler(http.server.SimpleHTTPRequestHandler):
         data = json.loads(post_data.decode('utf-8'))
         
         try:
-            cf = boto3.client('cloudformation')
+            cf = boto3.client('cloudformation', region_name='us-east-1')
             stack = cf.describe_stacks(StackName='zero-trust-demo-base')
             role_arn = next((o['OutputValue'] for o in stack['Stacks'][0]['Outputs'] 
                            if o['OutputKey'] == 'ContractorRoleArn'), None)
             
             if role_arn:
-                sts = boto3.client('sts')
+                sts = boto3.client('sts', region_name='us-east-1')
                 response = sts.assume_role(
                     RoleArn=role_arn,
                     RoleSessionName='contractor-session',
